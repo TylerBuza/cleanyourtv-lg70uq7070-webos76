@@ -48,7 +48,16 @@ function decide(facts, compat) {
   const homeKind = String(f.home || '');
   const nodeMajor = parseInt(String(f.node || process.version).replace(/^v/, ''), 10) || 0;
   const testedNote = compatMatch(compat, f.firmware, f.sdk);
-  return {
+  // This fork uses the already-validated TVModding controller for this exact
+  // model/firmware AND an explicit managed platform. Matching hardware alone
+  // must not advertise this private controller to the generic installer.
+  const managed =
+    f.platform === 'tvmodding' &&
+    f.model === '70UQ7070ZUD' &&
+    f.firmware === '04.60.90' &&
+    f.sdk === '7.6.0' &&
+    /^com\.webos\.app\.home (native|web)$/.test(homeKind);
+  const profile = {
     model: f.model || '',
     firmware: f.firmware || '',
     sdk: f.sdk || '',
@@ -57,14 +66,16 @@ function decide(facts, compat) {
     node: f.node || process.version,
     pickerMode: major === 10 ? 'overlay' : 'ondemand',
     notifyWindow: major >= 10 ? 'topui' : 'overlay',
-    homeSupported: homeKind === 'com.webos.app.home flutter' || homeKind === 'com.webos.app.home web',
+    homeSupported: managed || homeKind === 'com.webos.app.home flutter' || homeKind === 'com.webos.app.home web',
     tested: !!testedNote,
     testedNote,
     legacyNode: nodeMajor > 0 && nodeMajor < 10,
     // where LG's Home is the native app (webOS 5, 6, 22, 23 reports) or the webOS version is before 7
-    afterSam: (major > 0 && major < 7) || /\snative$/.test(homeKind) ? 'eim webapp-mgr preload-manager memorymanager' : '',
-    homeTakeover: /^com\.webos\.app\.home native$/.test(homeKind) ? 'standin' : 'mount',
+    afterSam: managed ? '' : (major > 0 && major < 7) || /\snative$/.test(homeKind) ? 'eim webapp-mgr preload-manager memorymanager' : '',
+    homeTakeover: managed ? 'tvmodding' : /^com\.webos\.app\.home native$/.test(homeKind) ? 'standin' : 'mount',
   };
+  if (managed) profile.lunaStdin = 'open';
+  return profile;
 }
 const readJson = (file, d) => {
   try {
@@ -96,7 +107,7 @@ function create(ctx) {
     const backup = P.D + '/backup/home-appinfo.orig.json';
     const home = homeKindOf(fs.existsSync(backup) ? backup : P.HOME_APP + '/appinfo.json');
     profile = decide(
-      { model: r.modelName, firmware: r.firmwareVersion, sdk: r.sdkVersion, home, node: process.version },
+      { model: r.modelName, firmware: r.firmwareVersion, sdk: r.sdkVersion, home, node: process.version, platform: P.PLATFORM },
       compatEntries(P.COMPAT)
     );
     try {
@@ -118,7 +129,10 @@ if (require.main === module) {
   };
   const compat = [];
   for (let i = a.indexOf('--compat') + 1; i > 0 && i < a.length && a[i].indexOf('--') !== 0; i++) compat.push(a[i]);
-  const p = decide({ model: val('--model'), firmware: val('--firmware'), sdk: val('--sdk'), home: val('--home') }, compatEntries(compat));
+  const p = decide(
+    { model: val('--model'), firmware: val('--firmware'), sdk: val('--sdk'), home: val('--home'), platform: val('--platform') },
+    compatEntries(compat)
+  );
   if (a[0] === 'show') console.log(JSON.stringify(p, null, 1));
   else if (a[0] === 'get' && a[1] in p) console.log(typeof p[a[1]] === 'boolean' ? (p[a[1]] ? 1 : 0) : p[a[1]]);
   else {

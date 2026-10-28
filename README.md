@@ -2,10 +2,19 @@
 
 # CleanYourTV for LG webOS
 
+> **TVModding branch:** [LG 70UQ7070ZUD / webOS 7.6.0 integration](docs/tvmodding.md)
+> layers this UI on an existing protected Home/debloat controller. Do not run the
+> generic installer below on that already-managed TV. This is source and setup
+> documentation, **not a standalone installer or a fork release**. The guide
+> records the SlopBro root method, recovery, tested features and startup limits.
+> The rest of this README describes upstream CleanYourTV, not additional features
+> validated in this managed fork. Upstream attribution is retained.
+
 A fast home screen for rooted LG webOS TVs, with Live TV from your own playlist, an Inputs list on the Input key,
 picture notifications, optional on-device voice recognition and an optional debloat of LG's ads and telemetry.
 
 > [!NOTE]
+>
 > **LG's system files are not modified.** The launcher takes over Home with a mount that exists only in RAM, so a reboot without the
 > boot scripts brings LG's Home back. Everything we install is stored in `/media/developer/cleanyourtv` (plus two boot scripts and
 > the key binds), and the uninstall removes it. It runs on the TV: no server and no account of ours, and the project collects no
@@ -19,11 +28,11 @@ sets up, updates and removes everything.
 
 ### Compatibility at a glance
 
-* **webOS**: 5 and newer (2020 models and later). webOS 4 and older have no systemd and an old Node.js; the setup stops before it
+- **webOS**: 5 and newer (2020 models and later). webOS 4 and older have no systemd and an old Node.js; the setup stops before it
   changes anything. LG names its versions two ways: [webOS version numbers](https://lasharor.github.io/cleanyourtv-WebOS/tested-tvs/#webos-version-numbers) gives both.
-* **Access**: a TV rooted with the [Homebrew Channel](https://webosbrew.org) ([rootmy.tv](https://rootmy.tv)) and internet access
+- **Access**: a TV rooted with the [Homebrew Channel](https://webosbrew.org) ([rootmy.tv](https://rootmy.tv)) and internet access
   on the TV for the download. Install from the Homebrew Channel, or with one command over SSH as `root`.
-* **Tested hardware**: LG OLED65G26LA on webOS 25. Other TVs are reported in
+- **Tested hardware**: LG OLED65G26LA on webOS 25. Other TVs are reported in
   [Tested TVs](https://lasharor.github.io/cleanyourtv-WebOS/tested-tvs/); an unlisted firmware is set up when LG's Home is of the
   flutter or web kind, and otherwise the setup stops and offers **Set up anyway**.
 
@@ -35,6 +44,7 @@ sets up, updates and removes everything.
 
 1. Root the TV and install the [Homebrew Channel](https://webosbrew.org).
 2. Install the manager app, one of two ways:
+
    - **From the Homebrew Channel.** Open the Homebrew Channel, the gear at the top, **Add repository**, and enter
 
      ```text
@@ -42,6 +52,7 @@ sets up, updates and removes everything.
      ```
 
      **CleanYourTV** then shows in the channel's list: open it and choose **Install**. New releases show there as updates.
+
    - **From your computer**, with your TV's IP address:
 
      ```sh
@@ -116,16 +127,16 @@ so a new theme needs a pull request and no release ([how](https://lasharor.githu
 
 ## Documentation
 
-* [Installing](https://lasharor.github.io/cleanyourtv-WebOS/install/) and [tested TVs](https://lasharor.github.io/cleanyourtv-WebOS/tested-tvs/)
-* [Updating and uninstalling](https://lasharor.github.io/cleanyourtv-WebOS/managing/), including dev builds
-* Using it: [the launcher](https://lasharor.github.io/cleanyourtv-WebOS/launcher/), [Live TV](https://lasharor.github.io/cleanyourtv-WebOS/live-tv/),
+- [Installing](https://lasharor.github.io/cleanyourtv-WebOS/install/) and [tested TVs](https://lasharor.github.io/cleanyourtv-WebOS/tested-tvs/)
+- [Updating and uninstalling](https://lasharor.github.io/cleanyourtv-WebOS/managing/), including dev builds
+- Using it: [the launcher](https://lasharor.github.io/cleanyourtv-WebOS/launcher/), [Live TV](https://lasharor.github.io/cleanyourtv-WebOS/live-tv/),
   [the Input key](https://lasharor.github.io/cleanyourtv-WebOS/input-key/), [picture notifications](https://lasharor.github.io/cleanyourtv-WebOS/notifications/),
   [voice](https://lasharor.github.io/cleanyourtv-WebOS/voice/), [debloat](https://lasharor.github.io/cleanyourtv-WebOS/debloat/) and
   [the manager app](https://lasharor.github.io/cleanyourtv-WebOS/manager/)
-* [Security](https://lasharor.github.io/cleanyourtv-WebOS/security/)
-* [What it changes on the TV](https://lasharor.github.io/cleanyourtv-WebOS/tv-changes/)
-* [Service API](https://lasharor.github.io/cleanyourtv-WebOS/api/) and [troubleshooting](https://lasharor.github.io/cleanyourtv-WebOS/troubleshooting/)
-* [Contributing](https://lasharor.github.io/cleanyourtv-WebOS/development/), [testing and CI](https://lasharor.github.io/cleanyourtv-WebOS/development/testing/)
+- [Security](https://lasharor.github.io/cleanyourtv-WebOS/security/)
+- [What it changes on the TV](https://lasharor.github.io/cleanyourtv-WebOS/tv-changes/)
+- [Service API](https://lasharor.github.io/cleanyourtv-WebOS/api/) and [troubleshooting](https://lasharor.github.io/cleanyourtv-WebOS/troubleshooting/)
+- [Contributing](https://lasharor.github.io/cleanyourtv-WebOS/development/), [testing and CI](https://lasharor.github.io/cleanyourtv-WebOS/development/testing/)
   and [internals](https://lasharor.github.io/cleanyourtv-WebOS/development/internals/)
 
 The pages are built with [Zensical](https://zensical.org) from [docs/](docs/), so they can also be read there.

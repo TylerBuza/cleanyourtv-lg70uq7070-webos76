@@ -38,6 +38,7 @@ opt() { $J opt "$D/config.json" "$1"; }
 
 # ---- checks before anything is changed ----
 preflight() {
+  [ "${CYTV_PLATFORM:-}" != tvmodding ] && [ ! -e "$R/var/lib/tvmodding/runtime.py" ] || die "TVModding-managed Home: use its existing controller, not the generic installer. Nothing was changed."
   [ -n "$R" ] || [ "$(id -u)" = 0 ] || die "run as root"
   command -v luna-send >/dev/null || die "this does not look like webOS (no luna-send)"
   [ -d "$INITD" ] || die "$INITD not found: root with the Homebrew Channel is required (https://rootmy.tv)"

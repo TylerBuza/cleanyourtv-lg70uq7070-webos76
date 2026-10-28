@@ -148,6 +148,18 @@ run(async () => {
   b = boot(['install', '--no-start', '--force']);
   ok(b.status === 0 && /continuing because of --force/.test(b.stderr), 'with --force it continues');
 
+  const previousConfig = fs.readFileSync(path.join(D, 'config.json'), 'utf8');
+  write(path.join(R, 'var/lib/tvmodding/runtime.py'), '# existing managed controller\n');
+  b = boot(['install', '--no-start', '--force']);
+  ok(
+    b.status !== 0 && /TVModding-managed Home/.test(b.stderr),
+    'even --force cannot stack the generic installer over the managed controller'
+  );
+  ok(
+    fs.readFileSync(path.join(D, 'config.json'), 'utf8') === previousConfig,
+    'the managed-controller refusal happens before configuration changes'
+  );
+
   // bootstrap.sh asks tvprofile.js for the per-TV decisions instead of deciding itself
   const bootText = fs.readFileSync(path.join(root, 'scripts', 'bootstrap.sh'), 'utf8');
   const stop = fs.readFileSync(path.join(root, 'scripts', 'debloat-stop.sh'), 'utf8'),

@@ -14,6 +14,38 @@ run(async () => {
   const cases = [
     // [what, facts, expected decisions]
     [
+      'TVModding exact native Home profile: preserve the proven rescan controller',
+      {
+        platform: 'tvmodding',
+        model: '70UQ7070ZUD',
+        sdk: '7.6.0',
+        firmware: '04.60.90',
+        home: 'com.webos.app.home native',
+        node: 'v12.21.0',
+      },
+      { homeSupported: true, homeTakeover: 'tvmodding', afterSam: '', lunaStdin: 'open', pickerMode: 'ondemand' },
+    ],
+    [
+      'same model on another firmware is not silently accepted',
+      { platform: 'tvmodding', model: '70UQ7070ZUD', sdk: '7.6.0', firmware: '04.60.91', home: 'com.webos.app.home native' },
+      { homeSupported: false, homeTakeover: 'standin' },
+    ],
+    [
+      'another model is not silently accepted by the TVModding rule',
+      { platform: 'tvmodding', model: 'OTHER', sdk: '7.6.0', firmware: '04.60.90', home: 'com.webos.app.home native' },
+      { homeSupported: false, homeTakeover: 'standin' },
+    ],
+    [
+      'matching hardware without the controller opt-in keeps upstream defaults',
+      { model: '70UQ7070ZUD', sdk: '7.6.0', firmware: '04.60.90', home: 'com.webos.app.home native' },
+      { homeSupported: false, homeTakeover: 'standin', afterSam: 'eim webapp-mgr preload-manager memorymanager' },
+    ],
+    [
+      'a different SDK is not covered by the managed validation',
+      { platform: 'tvmodding', model: '70UQ7070ZUD', sdk: '7.6.1', firmware: '04.60.90', home: 'com.webos.app.home native' },
+      { homeSupported: false, homeTakeover: 'standin' },
+    ],
+    [
       'webOS 25 (G2, the tested TV)',
       { sdk: '10.2.2', firmware: '33.23.05', home: 'com.webos.app.home flutter', node: 'v16.20.2' },
       { pickerMode: 'overlay', notifyWindow: 'topui', homeSupported: true, tested: true, legacyNode: false },

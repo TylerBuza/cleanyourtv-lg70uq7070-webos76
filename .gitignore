@@ -4,3 +4,17 @@ site/
 .venv/
 node_modules/
 .lint-pages/
+
+# Local device state and credentials must never be published with this fork.
+/keys/
+/backups/
+/captures/
+/fork-data/
+/cytv-data/
+/cytv-minimal-data/
+/config.json
+/usage.json
+/tv.json
+/.env
+/.env.*
+*.key
