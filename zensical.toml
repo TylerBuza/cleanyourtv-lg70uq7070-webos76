@@ -1,12 +1,12 @@
 # Documentation site (https://zensical.org). Build locally: pip install zensical && zensical serve
 [project]
-site_name = "CleanYourTV for LG webOS"
-site_description = "A fast home screen for rooted LG webOS TVs, with Live TV from your own playlist, an Inputs list, picture notifications, optional voice and an optional debloat."
+site_name = "CleanYourTV — LG 70UQ7070ZUD"
+site_description = "Model-specific CleanYourTV fork for a SlopBro-rooted LG 70UQ7070ZUD, firmware 04.60.90, webOS SDK 7.6.0. Protected native Home integration and recovery notes."
 site_author = "CleanYourTV contributors"
-site_url = "https://lasharor.github.io/cleanyourtv-WebOS/"
-repo_url = "https://github.com/lasharor/cleanyourtv-WebOS"
-repo_name = "lasharor/cleanyourtv-WebOS"
-edit_uri = "edit/main/docs/"
+site_url = "https://tylerbuza.github.io/cleanyourtv-lg70uq7070-webos76/"
+repo_url = "https://github.com/TylerBuza/cleanyourtv-lg70uq7070-webos76"
+repo_name = "TylerBuza/cleanyourtv-lg70uq7070-webos76"
+edit_uri = "edit/tv/upstream-native/docs/"
 copyright = "MIT licence. Not affiliated with LG Electronics."
 docs_dir = "docs"
 site_dir = "site"
@@ -14,7 +14,8 @@ extra_css = ["stylesheets/extra.css"]
 
 nav = [
   { "Home" = "index.md" },
-  { "Installing" = "install.md" },
+  { "This TV: root and native Home" = "native-home.md" },
+  { "Upstream installing (reference)" = "install.md" },
   { "Tested TVs" = "tested-tvs.md" },
   { "Updating and uninstalling" = "managing.md" },
   { "Using it" = [

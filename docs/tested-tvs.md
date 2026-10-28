@@ -1,5 +1,17 @@
 # Tested TVs
 
+## This fork's scope
+
+This fork targets **LG 70UQ7070ZUD, firmware 04.60.90, webOS SDK 7.6.0
+(webOS 22), Node.js 12.21.0, Homebrew Channel 0.7.3**, rooted using SlopBro.
+Live native Home switching, complete rollback/resume and permanent software
+reboot passed. Playback/audio, connected HDMI/CEC and unplugged cold boot are
+not physically accepted. See [this TV's guide](native-home.md). The upstream
+reports below are retained for context, not claims that this fork was tested
+on those devices.
+
+## Upstream compatibility reports
+
 CleanYourTV is written for rooted LG webOS TVs. Only a few models have been tried, and reports are welcome: open an issue with
 the output of **Share log** (see [Troubleshooting](troubleshooting.md#reporting-a-problem)) and say whether it worked.
 

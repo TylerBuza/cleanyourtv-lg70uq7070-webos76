@@ -1,6 +1,80 @@
 <p align="center"><img src="assets/icon.svg" width="128" alt="CleanYourTV icon"></p>
 
-# CleanYourTV for LG webOS
+# CleanYourTV — LG 70UQ7070ZUD
+
+**A model-specific fork for our rooted LG 70UQ7070ZUD, firmware 04.60.90,
+webOS SDK 7.6.0 (webOS 22).** Based on
+[lasharor/cleanyourtv-WebOS](https://github.com/lasharor/cleanyourtv-WebOS), with
+the upstream launcher UI and native Home stand-in. This is not a claim that this
+deployment is tested on other LG models or firmware versions.
+
+| This fork's target | Recorded version |
+| --- | --- |
+| TV | **LG 70UQ7070ZUD** |
+| Firmware | **04.60.90** |
+| webOS / SDK | **7.6.0** (webOS 22 family) |
+| TV Node.js | **12.21.0** |
+| Homebrew Channel | **0.7.3** |
+| CleanYourTV helper / launcher | **1.6.9 / 1.5.4** |
+| Root method | **SlopBro**, official `throwaway96/slopbro` |
+| Integration branch | [`tv/upstream-native`](https://github.com/TylerBuza/cleanyourtv-lg70uq7070-webos76/tree/tv/upstream-native) |
+
+## How we obtained root
+
+We used the official [SlopBro](https://github.com/throwaway96/slopbro) tool at
+revision [`21023d56ca424607bb03d2939609cc658c655fc7`](https://github.com/throwaway96/slopbro/tree/21023d56ca424607bb03d2939609cc658c655fc7),
+running its Python 3 script from a Windows PC on the same LAN. We selected webOS
+major version **7**, supplied the PC's local address explicitly, accepted the
+TV's pairing prompt and used SlopBro's autoroot/Homebrew Channel workflow.
+Afterward we verified **UID 0**, Homebrew Channel and key-based root SSH across
+a restart; unauthenticated Telnet was disabled and confirmed closed.
+
+See [the exact recorded procedure and precautions](docs/native-home.md#how-this-tv-was-rooted).
+No firmware downgrade or cross-model firmware flash was used. This launcher
+fork does **not** provide root or bundle the exploit. Do not reroot an already
+rooted TV; another firmware may be patched. Check SlopBro's official instructions
+and [current rooting compatibility](https://canirootmy.tv/) first. Keep pairing
+files, SSH keys and recovery backups private.
+
+## What is different in this fork
+
+- Upstream's **native Home stand-in**, with generic compatibility options rather
+  than a model-specific Python Home startup controller.
+- Protected runtime at `/var/lib/cleanyourtv`, opt-in open Luna stdin, safe native
+  undo ordering and bounded recovery of cached icons after helper startup.
+- Existing approved debloat is separate. Managed mode guards automatic updates,
+  uninstall and optional-feature changes. Voice, network notifications, Input-key
+  injection and Live TV are **not enabled** on this TV.
+- Root access and recovery are retained. Quick Start and Home Auto Launch remain
+  **on**. Native integration is for upstream alignment, not a promised speed gain.
+
+> [!WARNING]
+> **Device-specific integration, not a universal installer.** Live native switching,
+> launcher actions, full rollback/resume and the permanent software-reboot test
+> passed. Home opened with icons without a manual reload. Do not treat this
+> branch as an unattended installer or run the
+> generic upstream install/update/uninstall commands over the managed TV.
+> Actual playback/audio, connected HDMI/CEC, unplugged cold boot and prolonged
+> standby are separate physical checks.
+
+Start with [this TV's native Home, root and recovery guide](docs/native-home.md).
+The fork is named `cleanyourtv-lg70uq7070-webos76`; the original directory
+integration is retained on `tv/lg70uq7070-webos76`. No fork release or automatic update feed is
+published. Any upstream contribution needs a focused review against `dev`.
+
+Validation: **469 checks in 26 files** passed under both Node 8.12.0 and
+22.20.0, along with page consistency, types, lint, formatting, package construction
+and the documentation build. Optional Chromium 68/79 rendering checks could not
+run in the local WSL environment because `libnss3.so` is missing; they are not
+claimed as passed. See the [validation details](docs/native-home.md#validation-and-contribution).
+
+---
+
+## Upstream project documentation (reference)
+
+The sections below describe **upstream's general features and installation**,
+not the tested feature set or maintenance procedure for this managed TV. Links
+to `lasharor.github.io` intentionally refer to the original upstream docs.
 
 A fast home screen for rooted LG webOS TVs, with Live TV from your own playlist, an Inputs list on the Input key,
 picture notifications, optional on-device voice recognition and an optional debloat of LG's ads and telemetry.

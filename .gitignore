@@ -4,3 +4,18 @@ site/
 .venv/
 node_modules/
 .lint-pages/
+
+# Device state is not source code.
+/keys/
+/backups/
+/captures/
+/fork-data/
+/cytv-data/
+/cytv-minimal-data/
+/config.json
+/usage.json
+/tv.json
+/runtime-env.sh
+/.env
+/.env.*
+*.key

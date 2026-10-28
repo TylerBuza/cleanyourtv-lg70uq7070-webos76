@@ -1,4 +1,36 @@
-# CleanYourTV for LG webOS
+# CleanYourTV — LG 70UQ7070ZUD
+
+This is the documentation source for **our model-specific fork**, not the
+upstream project's official site. It targets a **rooted LG 70UQ7070ZUD** on
+**firmware 04.60.90 / webOS SDK 7.6.0 (webOS 22)**, with Node.js 12.21.0 and
+Homebrew Channel 0.7.3. Other models and firmware are not established by this
+fork's tests.
+
+Root was obtained with the official **SlopBro** tool from
+[throwaway96/slopbro](https://github.com/throwaway96/slopbro), revision
+[`21023d56ca424607bb03d2939609cc658c655fc7`](https://github.com/throwaway96/slopbro/tree/21023d56ca424607bb03d2939609cc658c655fc7).
+Read [how this TV was rooted](native-home.md#how-this-tv-was-rooted), including
+the reboot/root-SSH verification and precautions. This fork does not root TVs
+or include the exploit.
+
+## Start with this TV's guide
+
+[Native Home integration, root, runtime options and recovery](native-home.md)
+explains the upstream stand-in, protected `/var/lib/cleanyourtv` runtime and
+separate approved cleanup. The UI remains helper 1.6.9 / launcher 1.5.4.
+Voice, network notifications, Input-key injection and Live TV remain disabled.
+
+!!! warning "Managed, model-specific integration — not a universal installer"
+    Live native switching, complete rollback/resume and the permanent software
+    reboot passed. Home opened with icons without a manual reload. Do not run upstream's generic
+    installer, updater or uninstaller over this managed TV. Other-model reports
+    and upstream features below do not establish this fork's compatibility.
+
+## Upstream project overview (reference)
+
+Based on [lasharor/cleanyourtv-WebOS](https://github.com/lasharor/cleanyourtv-WebOS).
+The original overview, screenshots and generic guides below are retained as
+upstream reference; not all of those optional features are enabled on this TV.
 
 A fast home screen for rooted LG webOS TVs. It replaces LG's Home with a dock of four apps, a top shelf and an app grid,
 and adds Live TV from your own playlist, an Inputs list on the Input key, picture notifications from your network, optional
