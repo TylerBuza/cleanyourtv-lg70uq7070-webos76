@@ -10,10 +10,12 @@ export PATH=/usr/bin:/usr/sbin:/bin:/sbin:$PATH
 S=$(cd "$(dirname "$0")" && pwd)
 R=${CYTV_TEST_ROOT:-}                 # a folder that stands in for / (tools/test/scripts.test.js only; empty on a TV)
 MD=$R/media/developer
-D=$MD/cleanyourtv
+D=${CYTV_DIR:-$MD/cleanyourtv}
+export CYTV_DIR="$D"
 INITD=$R/var/lib/webosbrew/init.d
 J="node $S/scripts/jtool.js"          # JSON helper (node, not python3)
 TV="node $S/helper/tvprofile.js"      # per-TV decisions
+. "$S/scripts/luna-compat.sh"
 HOME_DIR=$R/usr/palm/applications/com.webos.app.home
 
 MODE=${1:-install}; [ $# -gt 0 ] && shift
@@ -31,13 +33,16 @@ done
 say() { echo "[cleanyourtv] $*"; }
 warn() { echo "[cleanyourtv] WARNING: $*" >&2; }
 die() { echo "[cleanyourtv] ERROR: $*" >&2; exit 1; }
-luna() { luna-send -n 1 -w 5000 -f "luna://$1" "$2" </dev/null 2>/dev/null; }
+luna() { luna_send -n 1 -w 5000 -f "luna://$1" "$2" 2>/dev/null; }
 svc_version() { sed -n "s/^const VERSION = '\(.*\)';/\1/p" "$1" | head -1; }
 service_answers() { curl -s -m 3 http://127.0.0.1:8765/api/version | sed -n 's/.*"version":"\([^"]*\)".*/\1/p'; }
 opt() { $J opt "$D/config.json" "$1"; }
 
 # ---- checks before anything is changed ----
 preflight() {
+  case "$D" in /*) ;; *) die "runtime directory must be absolute" ;; esac
+  case "$D" in /|/var|/var/lib|/media|/media/developer|*'/../'*|*'/..'|*[!a-zA-Z0-9_./-]*) die "unsafe runtime directory" ;; esac
+  [ ! -e "$D/MANAGED" ] && [ ! -e "$R/var/lib/cleanyourtv/MANAGED" ] || die "this runtime is externally managed; use its maintenance tools, not the generic installer"
   [ -n "$R" ] || [ "$(id -u)" = 0 ] || die "run as root"
   command -v luna-send >/dev/null || die "this does not look like webOS (no luna-send)"
   [ -d "$INITD" ] || die "$INITD not found: root with the Homebrew Channel is required (https://rootmy.tv)"
@@ -84,6 +89,9 @@ check_compat() {
 
   SRCINFO=$D/backup/home-appinfo.orig.json; [ -f "$SRCINFO" ] || SRCINFO=$HOME_DIR/appinfo.json
   HOMEKIND=$($J kind "$SRCINFO" 2>/dev/null)
+  if [ "${CYTV_NATIVE_ONLY:-0}" = 1 ]; then
+    [ "$HOMEKIND" = 'com.webos.app.home native' ] && [ -n "$($J exe "$SRCINFO")" ] || die "native-only mode requires LG's original native Home program; --force does not bypass this"
+  fi
   case "$HOMEKIND" in com.webos.app.home*) HOMEID=1 ;; *) HOMEID=0 ;; esac
   if [ -n "$COMPATNOTE" ] && [ $HOMEID = 1 ]; then
     say "this firmware is in the compatibility list ($COMPATNOTE); LG's Home app is '${HOMEKIND#com.webos.app.home }'"
@@ -100,6 +108,10 @@ check_compat() {
 backup() {
   mkdir -p $D/backup
   [ -f $D/backup/home-appinfo.orig.json ] || cp $HOME_DIR/appinfo.json $D/backup/home-appinfo.orig.json
+  if [ "${CYTV_NATIVE_ONLY:-0}" = 1 ] && [ ! -f "$D/backup/native-program.sha256" ]; then
+    native_exe=$($J exe "$D/backup/home-appinfo.orig.json")
+    sha256sum "$native_exe" > "$D/backup/native-program.sha256" || die "could not record the native Home program"
+  fi
   [ -f $D/backup/hosts.orig ] || cp /etc/hosts $D/backup/hosts.orig
   [ -f $D/backup/processes.orig.txt ] || { ps > $D/backup/processes.orig.txt 2>&1; systemctl list-units --no-legend > $D/backup/units.orig.txt 2>&1; date > $D/backup/date.txt; }
   # an update keeps the running version's files, so a failed start can be undone
@@ -113,6 +125,8 @@ copy_files() {
   cp $S/helper/*.js $D/
   if [ -f $S/BUILD ]; then cp $S/BUILD $D/BUILD; else rm -f $D/BUILD; fi   # the commit of a test build
   cp $S/scripts/* $D/
+  $J runtimeenv "$D" "$D/runtime-env.sh"
+  [ "${CYTV_MANAGED:-0}" != 1 ] || { touch "$D/MANAGED"; chmod 600 "$D/MANAGED"; }
   mkdir -p $D/inputhook && cp $S/inputhook/* $D/inputhook/ && chmod 755 $D/inputhook/ezinject
   [ -d $S/licenses ] && { mkdir -p $D/licenses; cp $S/licenses/* $D/licenses/; }
   chmod +x $D/*.sh $D/10-cleanyourtv-home $D/15-cleanyourtv-debloat
@@ -150,6 +164,7 @@ boot_scripts() {
 # The picker and notification apps ship in the same package as the manager, but the system app manager only learns about the extra
 # apps when it restarts. Restart it once if they are missing (the screen blinks).
 ensure_apps() {
+  [ "${CYTV_MANAGED:-0}" != 1 ] || return 0   # this integration does not enable overlay/key/voice modules
   missing=0
   for id in com.cleanyourtv.picker com.cleanyourtv.notify; do
     [ -d $MD/apps/usr/palm/applications/$id ] && ! luna com.webos.applicationManager/getAppInfo "{\"id\":\"$id\"}" | grep -q '"returnValue": true' && missing=1
@@ -163,7 +178,7 @@ ensure_apps() {
   sh $D/after-sam.sh </dev/null
   sleep 10
   pkill -f "[a]pp-id=com.webos.app.home"; sleep 2
-  luna-send -n 1 -w 10000 -f luna://com.webos.applicationManager/launch '{"id":"com.webos.app.home"}' </dev/null >/dev/null
+  luna_send -n 1 -w 10000 -f luna://com.webos.applicationManager/launch '{"id":"com.webos.app.home"}' >/dev/null
 }
 
 # ---- an update: restart the service on the new files; go back to the previous files if it does not answer ----
@@ -188,7 +203,7 @@ restart_for_update() {
   say "service $WANT is running"
   ensure_apps
   # the overlay apps and the launcher may have new pages: restart the hidden picker (the service starts it again) and reload Home
-  luna-send -n 1 -w 3000 luna://com.webos.applicationManager/closeByAppId '{"id":"com.cleanyourtv.picker"}' </dev/null >/dev/null 2>&1
+  luna_send -n 1 -w 3000 luna://com.webos.applicationManager/closeByAppId '{"id":"com.cleanyourtv.picker"}' >/dev/null 2>&1
   if [ "$FRONTEND_NEW" = 1 ] && { grep -q " $HOME_DIR " /proc/mounts || [ -f $R/tmp/cleanyourtv-home-standin ]; }; then
     sh $D/reload-home.sh </dev/null
   fi

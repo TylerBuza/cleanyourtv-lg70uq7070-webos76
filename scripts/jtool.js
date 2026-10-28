@@ -2,6 +2,20 @@
 // Small JSON helper for the shell scripts, so they need node (the service needs it anyway) and not python3.
 // Plain ES5 on purpose: older webOS images ship an old node.
 var fs = require('fs');
+function shq(s) {
+  return "'" + String(s).replace(/'/g, "'\\''") + "'";
+}
+function ordered(value) {
+  if (!value || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(ordered);
+  var out = {};
+  Object.keys(value)
+    .sort()
+    .forEach(function (key) {
+      out[key] = ordered(value[key]);
+    });
+  return out;
+}
 function rj(f, d) {
   try {
     return JSON.parse(fs.readFileSync(f, 'utf8'));
@@ -76,7 +90,7 @@ if (cmd === 'kind') {
 } else if (cmd === 'exe') {
   // exe <stock home appinfo.json>  ->  the program of a native Home app (its "main", absolute or in its folder)
   var e = rj(a[1], {}),
-    m = String(e.main || ''),
+    m = String(e.main || '').replace(/^file:\/\//, ''),
     cand = [m.charAt(0) === '/' ? m : '/usr/palm/applications/' + (e.id || '') + '/' + m, '/usr/bin/' + (e.id || '')];
   for (var ci = 0; ci < cand.length; ci++) {
     if (e.id && fs.existsSync(cand[ci]) && fs.statSync(cand[ci]).isFile()) {
@@ -85,6 +99,31 @@ if (cmd === 'kind') {
     }
   }
   process.exit(1);
+} else if (cmd === 'nativewrapper') {
+  // SAM starts this at LG's program path, so pass the actual runtime folder
+  // explicitly. exec adds no resident wrapper process and the source stays generic.
+  fs.writeFileSync(a[2], '#!/bin/sh\nexport CYTV_DIR=' + shq(a[1]) + '\nexec /bin/sh "$CYTV_DIR/home-standin.sh" "$@"\n');
+  fs.chmodSync(a[2], 0o755);
+} else if (cmd === 'runtimeenv') {
+  var env = 'export CYTV_DIR=' + shq(a[1]) + '\n';
+  ['CYTV_LUNA_STDIN', 'CYTV_MANAGED', 'CYTV_NATIVE_ONLY', 'CYTV_EXTERNAL_DEBLOAT'].forEach(function (k) {
+    env += 'export ' + k + '=' + shq(process.env[k] || (k === 'CYTV_LUNA_STDIN' ? 'closed' : '0')) + '\n';
+  });
+  fs.writeFileSync(a[2], env);
+  fs.chmodSync(a[2], 0o644);
+} else if (cmd === 'nativecheck') {
+  var original = rj(a[1], null),
+    current = rj(a[2], null);
+  if (
+    !original ||
+    !current ||
+    original.id !== 'com.webos.app.home' ||
+    original.type !== 'native' ||
+    JSON.stringify(ordered(original)) !== JSON.stringify(ordered(current))
+  ) {
+    console.error('native Home metadata changed; review firmware compatibility before takeover');
+    process.exit(1);
+  }
 } else if (cmd === 'wamlaunch') {
   // wamlaunch <launcher appinfo.json> <folder> <out>  ->  the request that asks webapp-mgr to open the launcher (home-standin.sh),
   // and <out>.str with the app description as a string, the form older webapp-mgr versions may expect

@@ -6,7 +6,10 @@
 #   standin  (native Home, webOS 5 to 23) home-standin.sh is mounted over LG's Home program; sam is not restarted.
 #            A file home-method holding "mount" in the service folder chooses the first way on such a TV too.
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin:$PATH
-L=/media/developer/cleanyourtv
+L=${CYTV_DIR:-$(dirname "$(readlink -f "$0")")}
+export CYTV_DIR="$L"
+[ -f "$L/runtime-env.sh" ] && . "$L/runtime-env.sh"
+. "$L/luna-compat.sh"
 H=/usr/palm/applications/com.webos.app.home
 STANDIN=/tmp/cleanyourtv-home-standin   # holds the path of LG's Home program while the stand-in is mounted over it
 LOG=/tmp/cleanyourtv-boot.log
@@ -26,25 +29,33 @@ method=$(node $L/tvprofile.js get homeTakeover --home "$(node $L/jtool.js kind $
 [ "$(cat $L/home-method 2>/dev/null)" = mount ] && method=mount
 EXE=""
 [ "$method" = standin ] && EXE=$(node $L/jtool.js exe $L/backup/home-appinfo.orig.json 2>/dev/null)
+if [ "${CYTV_NATIVE_ONLY:-0}" = 1 ] && { [ "$method" != standin ] || [ -z "$EXE" ]; }; then
+  echo "$(up) home: native-only mode refuses a mount/SAM-restart fallback" >> $LOG
+  exit 1
+fi
+if [ "${CYTV_NATIVE_ONLY:-0}" = 1 ]; then
+  node "$L/jtool.js" nativecheck "$L/backup/home-appinfo.orig.json" "$H/appinfo.json" || exit 1
+  [ -f "$L/backup/native-program.sha256" ] && sha256sum -c "$L/backup/native-program.sha256" || { echo 'native Home program changed or baseline missing; refusing takeover' >&2; exit 1; }
+fi
 [ "$method" = standin ] && [ -z "$EXE" ] && { echo "$(up) home: LG's Home program not found; using the mount and a sam restart" >> $LOG; method=mount; }
 
 if [ "$method" = standin ]; then
   echo "$(up) home: LG's Home is the program $EXE; mounting the stand-in over it (sam is not restarted)" >> $LOG
-  chmod 755 $L/home-standin.sh
-  mount --bind $L/home-standin.sh "$EXE" || { echo "$(up) home: the mount over $EXE failed" >> $LOG; exit 1; }
+  chmod 755 $L/home-standin.sh $L/native-wrapper.sh
+  mount --bind $L/native-wrapper.sh "$EXE" || { echo "$(up) home: the mount over $EXE failed" >> $LOG; exit 1; }
   echo "$EXE" > $STANDIN
   # LG's Home that runs now is its own program: stop it once, sam starts the stand-in for Home from now on
   for p in $(pgrep -f "^$EXE"); do kill "$p" 2>/dev/null; done
   (
     sleep 3
-    fg=$(luna-send -n 1 -w 5000 -f luna://com.webos.applicationManager/getForegroundAppInfo '{}' </dev/null | grep '"appId"')
+    fg=$(luna_send -n 1 -w 5000 -f luna://com.webos.applicationManager/getForegroundAppInfo '{}' | grep '"appId"')
     case "$fg" in
-      *'"appId": ""'*|*com.webos.app.home*|"") luna-send -n 1 -w 10000 -f luna://com.webos.applicationManager/launch '{"id":"com.webos.app.home"}' </dev/null ;;
+      *'"appId": ""'*|*com.webos.app.home*|"") luna_send -n 1 -w 10000 -f luna://com.webos.applicationManager/launch '{"id":"com.webos.app.home"}' ;;
     esac
     # the launcher must be open in webapp-mgr by now; otherwise LG's Home comes back until the next reboot
     open=0
     for i in $(seq 1 15); do
-      luna-send -n 1 -w 3000 luna://com.palm.webappmanager/listRunningApps '{}' </dev/null | grep -q '"com.webos.app.home"' && { open=1; break; }
+      luna_send -n 1 -w 3000 luna://com.palm.webappmanager/listRunningApps '{}' | grep -q '"com.webos.app.home"' && { open=1; break; }
       sleep 2
     done
     if [ $open = 1 ]; then
@@ -64,19 +75,22 @@ else
     for i in $(seq 1 60); do systemctl is-active sam >/dev/null && break; sleep 2; done
     sh $L/after-sam.sh   # webOS before 7 and the native Home: the services that keep talking to the old sam (issues 23 and 24)
     sleep 8
-    fg=$(luna-send -n 1 -w 5000 -f luna://com.webos.applicationManager/getForegroundAppInfo '{}' </dev/null | grep '"appId"')
+    fg=$(luna_send -n 1 -w 5000 -f luna://com.webos.applicationManager/getForegroundAppInfo '{}' | grep '"appId"')
     case "$fg" in
       *'"appId": ""'*|*com.webos.app.home*|"")
         pkill -f "[a]pp-id=com.webos.app.home"; sleep 2
-        luna-send -n 1 -w 10000 -f luna://com.webos.applicationManager/launch '{"id":"com.webos.app.home"}' </dev/null ;;
+        luna_send -n 1 -w 10000 -f luna://com.webos.applicationManager/launch '{"id":"com.webos.app.home"}' ;;
     esac
   ) </dev/null >/dev/null 2>&1 &
 fi
 # Watchdog: if the helper stays unreachable for 60 s, fall back to stock Home until next reboot.
+generation="$$-$(up)"
+printf '%s\n' "$generation" > "$L/home-generation"
 (
   bad=0
-  while replaced; do
+  while [ "$(cat "$L/home-generation" 2>/dev/null)" = "$generation" ] && replaced; do
     sleep 10
+    [ "$(cat "$L/home-generation" 2>/dev/null)" = "$generation" ] && [ ! -e "$L/DISABLE" ] || exit 0
     if curl -s -m 3 -o /dev/null http://127.0.0.1:8765/api/foreground; then bad=0; else
       pgrep -f cleanyourtv/helper.js >/dev/null || (nohup node $L/helper.js >/tmp/cleanyourtv-helper.log 2>&1 </dev/null &)
       bad=$((bad+1)); [ $bad -ge 6 ] && { sh $L/undo-home.sh temp; break; }

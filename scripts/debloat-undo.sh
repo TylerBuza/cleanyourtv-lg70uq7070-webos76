@@ -2,6 +2,10 @@
 # Undo debloat-stop.sh: restart the systemd daemons, remove the stubs and the hosts lines (dynamic services start on demand again).
 # sh debloat-undo.sh [group...]: only those groups (ads, tracking, logs, suggestions, see debloat-stop.sh); without arguments all.
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin:$PATH
+L=${CYTV_DIR:-$(dirname "$(readlink -f "$0")")}
+export CYTV_DIR="$L"
+[ -f "$L/runtime-env.sh" ] && . "$L/runtime-env.sh"
+[ "${CYTV_EXTERNAL_DEBLOAT:-0}" != 1 ] || exit 0
 G=" ${*:-ads tracking logs suggestions} "
 on() { case "$G" in *" $1 "*) return 0 ;; esac; return 1; }
 units=""; bins=""

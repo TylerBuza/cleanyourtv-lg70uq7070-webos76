@@ -7,7 +7,10 @@
 #   suggestions  contentminer, nudge, sportsalarm
 # sh debloat-stop.sh [group...]: only those groups; without arguments every group that is not switched off.
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin:$PATH
-L=/media/developer/cleanyourtv
+L=${CYTV_DIR:-$(dirname "$(readlink -f "$0")")}
+export CYTV_DIR="$L"
+[ -f "$L/runtime-env.sh" ] && . "$L/runtime-env.sh"
+[ "${CYTV_EXTERNAL_DEBLOAT:-0}" != 1 ] || exit 0
 if [ $# -gt 0 ]; then
   G=" $* "
 else

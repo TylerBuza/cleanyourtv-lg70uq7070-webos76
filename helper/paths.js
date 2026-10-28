@@ -8,6 +8,8 @@ const SERVICE_DIR = env.CYTV_SERVICE_DIR || '/media/developer/apps/usr/palm/serv
 
 module.exports = {
   D, // the service's own folder: helper files, config.json, the launcher (app/), Live TV data, themes
+  MANAGED: env.CYTV_MANAGED === '1', // external maintenance owns updates, optional modules and cleanup
+  NATIVE_HOME: env.CYTV_NATIVE_ONLY === '1', // use the upstream stand-in lifecycle without rebooting SAM
   SERVICE_DIR, // the installed package (the manager app's service folder)
   CONF: D + '/config.json',
   USAGE: D + '/usage.json',

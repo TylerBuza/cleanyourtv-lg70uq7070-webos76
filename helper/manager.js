@@ -15,6 +15,11 @@ function fixLastApp() {
 }
 // Switching between LG's Home and ours needs a restart: LG's Home does not come back reliably while the system is running.
 function setHome(enabled) {
+  if (P.NATIVE_HOME) {
+    const script = (P.D + '/native-home.sh').replace(/'/g, "'\\''");
+    exec.detached("/bin/sh '" + script + "' " + (enabled ? 'enable' : 'disable'));
+    return;
+  }
   if (enabled) {
     try {
       fs.unlinkSync(P.DISABLE);
@@ -137,9 +142,27 @@ function create(ctx) {
       return json({ returnValue: true });
     }
     const act = u.replace('/api/manager/', '');
+    if (
+      P.MANAGED &&
+      [
+        'check',
+        'channel',
+        'update-frontend',
+        'rollback-frontend',
+        'update-service',
+        'uninstall',
+        'options',
+        'learn-key',
+        'clear-key',
+        'keys-done',
+        'notify-api',
+      ].includes(act) &&
+      req.method === 'POST'
+    )
+      return json({ error: 'Managed deployment: use its external maintenance tools for lifecycle changes' }, 409);
     const napi = ctx.feature('notifyapi');
     if (act === 'status') {
-      if (updates.stale()) updates.check();
+      if (!P.MANAGED && updates.stale()) updates.check();
       return json(status());
     }
     if (act === 'learn-state') return json(learnState());
@@ -204,7 +227,7 @@ function create(ctx) {
     prefix: '/api/manager/',
     paths: ['/api/frontend-ok', '/api/undo'],
     handle,
-    start: () => setInterval(updates.watchPackage, 120000),
+    start: () => (P.MANAGED ? null : setInterval(updates.watchPackage, 120000)),
     check: updates.check,
     status,
     frontendLoaded: updates.frontendLoaded,

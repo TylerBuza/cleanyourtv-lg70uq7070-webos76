@@ -6,7 +6,10 @@
 # launcher is shown again; without registration SAM restarts this script on the Home key, which shows the launcher the same way.
 # Every step is written to /tmp/cleanyourtv-boot.log, which Share log includes.
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin:$PATH
-L=/media/developer/cleanyourtv
+L=${CYTV_DIR:-$(dirname "$(readlink -f "$0")")}
+export CYTV_DIR="$L"
+[ -f "$L/runtime-env.sh" ] && . "$L/runtime-env.sh"
+. "$L/luna-compat.sh"
 LOG=/tmp/cleanyourtv-boot.log
 up() { cut -d' ' -f1 /proc/uptime; }
 log() { echo "$(up) home-standin[$$]: $*" >> $LOG 2>/dev/null; }
@@ -18,7 +21,7 @@ pkill -f "[l]una-send -i -a com.webos.app.home" 2>/dev/null
 show() {
   for f in $L/wam-launch.json $L/wam-launch.json.str; do
     [ -f $f ] || continue
-    r=$(luna-send -n 1 -w 8000 luna://com.palm.webappmanager/launchApp "$(cat $f)" </dev/null 2>&1 | tr -d '\n')
+    r=$(luna_send -n 1 -w 8000 luna://com.palm.webappmanager/launchApp "$(cat $f)" 2>&1 | tr -d '\n')
     if echo "$r" | grep -q '"returnValue": *true'; then log "launcher shown ($1)"; return 0; fi
     log "webapp-mgr refused ${f##*/}: $(echo "$r" | cut -c1-200)"
   done
@@ -30,7 +33,7 @@ show start
 
 # the registration: SAM's events arrive one JSON line each
 for m in registerApp registerNativeApp; do
-  luna-send -i -a com.webos.app.home "luna://com.webos.applicationManager/$m" '{}' </dev/null 2>&1 | while read -r line; do
+  luna_send -i -a com.webos.app.home "luna://com.webos.applicationManager/$m" '{}' 2>&1 | while read -r line; do
     case "$line" in
       *'"event"'*relaunch*) show relaunch ;;
       *'"event"'*close*) log "closed by the app manager"; kill $$ 2>/dev/null; exit 0 ;;

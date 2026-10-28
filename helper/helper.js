@@ -51,12 +51,13 @@ const core = {
 loaded.push(core);
 
 // the order matters where one part uses another: voice and the notification port show cards through notify
-const notify = load('notify', () => require('./notify').create(ctx));
+const managed = P.MANAGED;
+const notify = managed ? null : load('notify', () => require('./notify').create(ctx));
 if (notify) load('voice', () => require('./voice').create(ctx));
 load('live', () => require('./live').create(ctx));
 load('theme', () => require('./theme').create(ctx));
 load('wallpapers', () => require('./wallpapers').create(ctx));
-const inputkey = load('inputkey', () => require('./inputkey').create(ctx));
+const inputkey = managed ? null : load('inputkey', () => require('./inputkey').create(ctx));
 if (notify) load('notifyapi', () => require('./notifyapi').create(ctx));
 const manager = load('manager', () => require('./manager').create(ctx));
 load('apps', () => require('./apps').create(ctx));
@@ -86,5 +87,5 @@ require('./server')
     }
     // what this TV is (webOS version, firmware): the Input key's default follows it
     ctx.profile.refresh().then(() => inputkey && inputkey.syncMode());
-    if (manager) setTimeout(() => manager.check(), 60000);
+    if (manager && !managed) setTimeout(() => manager.check(), 60000);
   });

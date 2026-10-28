@@ -95,10 +95,23 @@ run(async () => {
     0o755
   );
   write(path.join(BIN, 'systemctl'), '#!/bin/sh\nexit 0\n', 0o755);
-  const boot = args =>
+  const boot = (args, extra) =>
     cp.spawnSync('sh', [path.join(S, 'bootstrap.sh')].concat(args), {
       encoding: 'utf8',
-      env: Object.assign({}, process.env, { PATH: process.env.PATH + ':' + BIN, CYTV_TEST_ROOT: R }),
+      env: Object.assign(
+        {},
+        process.env,
+        {
+          PATH: process.env.PATH + ':' + BIN,
+          CYTV_TEST_ROOT: R,
+          CYTV_DIR: '',
+          CYTV_MANAGED: '',
+          CYTV_NATIVE_ONLY: '',
+          CYTV_EXTERNAL_DEBLOAT: '',
+          CYTV_LUNA_STDIN: '',
+        },
+        extra || {}
+      ),
       timeout: 60000,
     });
   const D = path.join(R, 'media/developer/cleanyourtv');
@@ -147,6 +160,35 @@ run(async () => {
   );
   b = boot(['install', '--no-start', '--force']);
   ok(b.status === 0 && /continuing because of --force/.test(b.stderr), 'with --force it continues');
+
+  const nativeExe = path.join(R, 'usr/bin/native-home'),
+    protectedD = path.join(R, 'var/lib/cleanyourtv');
+  write(nativeExe, 'original native program');
+  fs.writeFileSync(
+    path.join(R, 'usr/palm/applications/com.webos.app.home/appinfo.json'),
+    JSON.stringify({ id: 'com.webos.app.home', type: 'native', main: 'file://' + nativeExe })
+  );
+  b = boot(['install', '--no-start', '--no-input-key', '--no-debloat', '--force'], {
+    CYTV_DIR: protectedD,
+    CYTV_MANAGED: '1',
+    CYTV_NATIVE_ONLY: '1',
+    CYTV_LUNA_STDIN: 'open',
+    CYTV_EXTERNAL_DEBLOAT: '1',
+  });
+  ok(
+    b.status === 0 && fs.existsSync(path.join(protectedD, 'helper.js')),
+    'an explicit protected runtime directory is supported (' + b.stderr.slice(-200) + ')'
+  );
+  ok(
+    fs.existsSync(path.join(protectedD, 'MANAGED')) &&
+      /CYTV_LUNA_STDIN='open'/.test(fs.readFileSync(path.join(protectedD, 'runtime-env.sh'), 'utf8')),
+    'managed ownership and Luna mode survive boot in runtime-env.sh'
+  );
+  b = boot(['install', '--no-start', '--force']);
+  ok(
+    b.status !== 0 && /externally managed/.test(b.stderr),
+    'the default installer cannot stack over an existing protected managed runtime'
+  );
 
   // bootstrap.sh asks tvprofile.js for the per-TV decisions instead of deciding itself
   const bootText = fs.readFileSync(path.join(root, 'scripts', 'bootstrap.sh'), 'utf8');
