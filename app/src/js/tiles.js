@@ -27,6 +27,12 @@ function tile(a) {
   d._i = i;
   if (!known) i.crossOrigin = 'anonymous';
   i.onload = function () {
+    d._iconFailed = false;
+    if (d._iconFallback) {
+      d._iconFallback.remove();
+      d._iconFallback = null;
+    }
+    if (!i.parentNode) d.appendChild(i);
     if (!colors[a.id]) {
       var col = iconColor(i, a.id);
       d._col = col;
@@ -40,11 +46,15 @@ function tile(a) {
     }
   };
   i.onerror = function () {
+    d._iconFailed = true;
     i.remove();
-    var t = document.createElement('div');
-    t.className = 't';
-    t.textContent = a.title;
-    d.appendChild(t);
+    if (!d._iconFallback) {
+      var t = document.createElement('div');
+      t.className = 't';
+      t.textContent = a.title;
+      d._iconFallback = t;
+      d.appendChild(t);
+    }
     if (!colors[a.id]) {
       var f = hsl2rgb(hashHue(a.id), 0.42, 0.42);
       paint(d, { c: f, b: hsl2rgb(hashHue(a.id), 0.4, 0.2) });
@@ -54,6 +64,18 @@ function tile(a) {
   d.appendChild(i);
   if (i.decode) i.decode().catch(function () {});
   return d;
+}
+
+// A cached first paint may beat the local helper. Retry only after an app-list
+// request succeeds, keeping fallback text visible until an icon actually loads.
+function retryTileIcons() {
+  Object.keys(tiles).forEach(function (id) {
+    var d = tiles[id];
+    if (!d._iconFailed || !d._i || (d._iconRetries || 0) >= 2) return;
+    d._iconFailed = false;
+    d._iconRetries = (d._iconRetries || 0) + 1;
+    d._i.src = API + '/icon/' + encodeURIComponent(id) + '?retry=' + d._iconRetries;
+  });
 }
 
 /* ---------- ambient glow: two layers cross-fade, updated only once focus settles ---------- */
