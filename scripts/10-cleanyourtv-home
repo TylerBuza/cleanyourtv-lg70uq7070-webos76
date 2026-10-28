@@ -49,9 +49,18 @@ if [ "$method" = standin ]; then
   (
     sleep 3
     fg=$(luna_send -n 1 -w 5000 -f luna://com.webos.applicationManager/getForegroundAppInfo '{}' | grep '"appId"')
+    echo "$(up) home: initial native foreground: $fg" >> "$LOG"
+    launch_home=0
     case "$fg" in
-      *'"appId": ""'*|*com.webos.app.home*|"") luna_send -n 1 -w 10000 -f luna://com.webos.applicationManager/launch '{"id":"com.webos.app.home"}' ;;
+      *'"appId": ""'*|*com.webos.app.home*|"") launch_home=1 ;;
     esac
+    # Some firmware is still on its last HDMI input when the boot hook runs.
+    # Only an explicit startup preference may bring Home over that input.
+    [ "${CYTV_BOOT_HOME:-0}" = 1 ] && launch_home=1
+    if [ "$launch_home" = 1 ]; then
+      reply=$(luna_send -n 1 -w 10000 -f luna://com.webos.applicationManager/launch '{"id":"com.webos.app.home"}')
+      echo "$(up) home: initial native launch: $(echo "$reply" | tr '\n' ' ')" >> "$LOG"
+    fi
     # the launcher must be open in webapp-mgr by now; otherwise LG's Home comes back until the next reboot
     open=0
     for i in $(seq 1 15); do

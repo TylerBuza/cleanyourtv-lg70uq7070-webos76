@@ -106,7 +106,7 @@ if (cmd === 'kind') {
   fs.chmodSync(a[2], 0o755);
 } else if (cmd === 'runtimeenv') {
   var env = 'export CYTV_DIR=' + shq(a[1]) + '\n';
-  ['CYTV_LUNA_STDIN', 'CYTV_MANAGED', 'CYTV_NATIVE_ONLY', 'CYTV_EXTERNAL_DEBLOAT'].forEach(function (k) {
+  ['CYTV_LUNA_STDIN', 'CYTV_MANAGED', 'CYTV_NATIVE_ONLY', 'CYTV_EXTERNAL_DEBLOAT', 'CYTV_BOOT_HOME'].forEach(function (k) {
     env += 'export ' + k + '=' + shq(process.env[k] || (k === 'CYTV_LUNA_STDIN' ? 'closed' : '0')) + '\n';
   });
   fs.writeFileSync(a[2], env);
