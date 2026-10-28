@@ -145,7 +145,7 @@ function create(ctx) {
     exec.execFile(
       'luna-send',
       ['-n', '1', '-w', '3000', '-f', 'luna://com.webos.applicationManager/getForegroundAppInfo', '{}'],
-      { timeout: 6000 },
+      { timeout: 6000, keepStdinOpen: process.env.CYTV_LUNA_STDIN === 'open' },
       (e, out) => {
         try {
           const o = JSON.parse(out);

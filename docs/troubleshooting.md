@@ -6,7 +6,7 @@
   Home Settings > Home Style to Basic.
 - **Apps do not open, an HDMI input has no picture or the remote no longer controls HDMI-CEC devices (webOS 5 to 23).** These
   followed the restart of the app manager on TVs with LG's native Home (issues 14, 23 and 24). From service 1.6.6 such a TV takes
-  over Home without that restart. **Share log** shows the steps under *Boot steps*; open an issue with it if the problem stays.
+  over Home without that restart. **Share log** shows the steps under _Boot steps_; open an issue with it if the problem stays.
 - **An app is missing from the grid.** Check **Hidden apps** in Customise. Apps without a launch icon are not listed.
 - **After a firmware update removed root.** Re-root, then run the [install command](install.md#1-install-the-manager-app) and the setup again.
 - **The Input key opens LG's picker.** Check the Input key switch in the manager app and run **Learn the Input key**.
@@ -32,10 +32,25 @@
 - **Back to LG's Home right now.** In the manager, **CleanYourTV as Home** off, or `sh /media/developer/cleanyourtv/undo-home.sh`
   over SSH.
 
+## Luna replies disappear on webOS 7.6.0
+
+On one LG 70UQ7070ZUD running firmware 04.60.90 (webOS 7.6.0, Node 12.21.0),
+`luna-send` could exit without executing or returning a reply when stdin reached
+EOF. The Node helper supports an opt-in workaround: set `CYTV_LUNA_STDIN=open`
+in its launch environment. It then holds an input pipe open until the child
+exits, while keeping the Luna wait and the process kill deadline. Unset the
+variable to restore the default closed-stdin behaviour on other TVs.
+
+Developers can also pass `keepStdinOpen: true` to `helper/luna.js`; an explicit
+`false` overrides the environment. The foreground-app probe follows the same
+environment variable. This affects the **Node helper only**, not shell-script
+Luna calls, and does not make an unsupported Home takeover or installer safe.
+The device verification used a separately managed Home controller, not the
+generic installer. Other firmware has not been validated for this workaround.
+
 ## Reporting a problem
 
 An AI assistant can help you read the report and find the cause: see [Working on problems with an AI assistant](ai.md).
-
 
 Open an [issue](https://github.com/lasharor/cleanyourtv-WebOS/issues) and attach the output of **Share log**
 (manager app, see [The manager app](manager.md#share-log)). It is masked, so it does not contain your addresses or keys. Say which
