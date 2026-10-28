@@ -73,10 +73,13 @@ else
   ) </dev/null >/dev/null 2>&1 &
 fi
 # Watchdog: if the helper stays unreachable for 60 s, fall back to stock Home until next reboot.
+generation="$$-$(up)"
+printf '%s\n' "$generation" > "$L/home-generation"
 (
   bad=0
-  while replaced; do
+  while [ "$(cat "$L/home-generation" 2>/dev/null)" = "$generation" ] && replaced; do
     sleep 10
+    [ "$(cat "$L/home-generation" 2>/dev/null)" = "$generation" ] && [ ! -e "$L/DISABLE" ] || exit 0
     if curl -s -m 3 -o /dev/null http://127.0.0.1:8765/api/foreground; then bad=0; else
       pgrep -f cleanyourtv/helper.js >/dev/null || (nohup node $L/helper.js >/tmp/cleanyourtv-helper.log 2>&1 </dev/null &)
       bad=$((bad+1)); [ $bad -ge 6 ] && { sh $L/undo-home.sh temp; break; }

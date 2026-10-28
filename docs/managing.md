@@ -62,3 +62,19 @@ sh /media/developer/cleanyourtv/uninstall.sh
 
 `--keep-config` keeps your settings and usage history, and `--no-reboot` restores LG's Home right away instead of restarting the TV. Uninstalling removes the apps, boot scripts and Input-key bind and
 restarts the TV, which then starts with LG's Home. See [What it changes on the TV](tv-changes.md) for what is removed.
+
+### Native Home restoration safety
+
+Where a script stands in for LG's native Home program, restoring Home verifies
+the marker and mounted script belong to the saved native app. It stops that
+interpreter and its registration descendants before unmounting, with process
+start-time checks to avoid signalling a reused PID. It does not kill unrelated
+Luna clients. A watchdog from a previous takeover is retired so it cannot undo
+a quickly re-enabled launcher.
+
+If cleanup or unmounting fails, the command reports failure and retains the
+marker instead of claiming stock Home was restored. Do not delete that marker
+or force/lazy-unmount an unknown target. The no-reboot uninstaller also handles
+native takeover and stops before deleting its runtime if restoration fails.
+Keep root SSH available for recovery; a reboot with Homebrew's failsafe skips
+the takeover scripts. This does not change the manager switch's normal reboot.
