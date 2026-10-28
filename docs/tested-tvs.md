@@ -16,6 +16,7 @@ the output of **Share log** (see [Troubleshooting](troubleshooting.md#reporting-
 | Two models | 23.25.55 | | **Works**, reported (the models were not named). |
 | 43UR74006LB | 13.40.90 | webOS 23 (8.4.0, Node.js 12) | **Works**, reported in [#17](https://github.com/lasharor/cleanyourtv-WebOS/issues/17): Home takeover, the service and the input hook came up (service 1.5.16, launcher 1.4.15). LG's Home is the `native` kind: set up then with **Set up anyway**, from 1.6.7 the stand-in. |
 | 43NANO786QA | 04.60.91 | webOS 22 (7.6) | **Works**, reported in [#31](https://github.com/lasharor/cleanyourtv-WebOS/issues/31). |
+| 70UQ7070ZUD | 04.60.90 | webOS 22 (7.6.0, Node.js 12.21.0) | **Conditional (managed configuration).** Native Home, launcher actions, software reboot and rollback/resume passed with compatibility backports and explicit startup/storage options, not the ordinary upstream setup. Playback/audio, connected HDMI/CEC and generic installation are not verified. See the [detailed report](#70uq7070zud-conditional-managed-report). |
 | OLED65C26LD | | | **Problem reported** in [#14](https://github.com/lasharor/cleanyourtv-WebOS/issues/14): no picture from a set-top box on HDMI until CleanYourTV was removed. The same kind of problem as [#23](https://github.com/lasharor/cleanyourtv-WebOS/issues/23); not reported again since 1.6.7. |
 | OLED55G19LA | 03.53.45 | webOS 6.5 (6.5.3, Node.js 8.12) | **Works**, reported in [#5](https://github.com/lasharor/cleanyourtv-WebOS/issues/5): works since service 1.5.13. LG's Home is the `native` kind. The Inputs list over the running app is started when the Input key is pressed and closed after use. |
 | 65NANO753PR | 03.53.45 | webOS 6.5 (6.5.3, Node.js 8.12) | **Works**, reported in [#18](https://github.com/lasharor/cleanyourtv-WebOS/issues/18) (service 1.6.1, launcher 1.5.1). LG's Home is the `native` kind. From a cold start LG's own Home showed for about 30 seconds before CleanYourTV; with **Quick Start+** on, the TV wakes to CleanYourTV. |
@@ -36,6 +37,76 @@ the output of **Share log** (see [Troubleshooting](troubleshooting.md#reporting-
     the version that fixed them. *Problem reported* and *Problem open* mean a report of something that does not work, not yet
     confirmed fixed. *Does not work* means CleanYourTV cannot run there. The rows go from the newest webOS to the oldest. A TV
     that is not on this list may still work: see [unlisted firmware](install.md#unlisted-firmware).
+
+    *Conditional (managed configuration)* means the listed checks passed only
+    with the documented backports and deployment conditions, not the normal
+    upstream installer or its default configuration. It is not a blanket
+    supported-model or supported-firmware declaration.
+
+## 70UQ7070ZUD conditional managed report
+
+This report is limited to **LG 70UQ7070ZUD, firmware 04.60.90, SDK 7.6.0
+(webOS 22), Node.js 12.21.0**, already rooted using SlopBro with Homebrew Channel
+0.7.3. Device checks used helper **1.6.9 / launcher 1.5.4** with compatibility
+backports in a separately managed deployment, not the current upstream `dev`
+package. LG's original Home is **native**; takeover used the executable
+stand-in and kept SAM's native registration, without restarting SAM.
+
+### Required conditions and related changes
+
+- **Open Luna stdin:** this firmware could exit `luna-send` calls at EOF before
+  execution or a reply. The deployment opted in to `CYTV_LUNA_STDIN=open` for
+  both Node and shell calls. The upstream proposal is [PR #55](https://github.com/lasharor/cleanyourtv-WebOS/pull/55).
+- **Explicit startup Home:** the boot hook initially read the last HDMI input,
+  skipped the conditional Home launch and later fell back to stock LG Home.
+  The deployment uses the fork-only `CYTV_BOOT_HOME=1` startup option, while
+  Quick Start and the TV's Home Auto Launch setting remain on. That option is
+  not part of the unmodified upstream configuration and is not a watcher
+  redirecting subsequent app/input use.
+- **Protected runtime:** `/media/developer` was observed becoming recursively
+  world-writable at boot. Root-executed files were placed under protected
+  `/var/lib/cleanyourtv`, with corresponding shell/native-wrapper path support.
+  Setting a helper environment variable alone does not provide that complete
+  relocation in the upstream scripts.
+- **Icon and undo backports:** cached icons recover after helper readiness, and
+  owned stand-in processes are stopped before unmounting their script. Related
+  upstream proposals are [PR #54](https://github.com/lasharor/cleanyourtv-WebOS/pull/54)
+  and [PR #56](https://github.com/lasharor/cleanyourtv-WebOS/pull/56). These drafts
+  are extracted proposals, not proof that this exact current-`dev` code has been
+  deployed or that merging them alone reproduces the managed configuration.
+
+Existing approved cleanup was separate. Automatic lifecycle changes were
+guarded; Live TV, Input-key injection, voice and network notifications were
+disabled. Those choices are deployment policy, not model-wide incompatibility
+findings for the optional features.
+
+### What was checked
+
+- Actual launcher tile action opened an app, and Home returned to the launcher.
+- Streaming-app and HDMI-input foreground-to-Home transitions passed using the
+  network remote-input path. This checks routing, not video/audio or CEC.
+- Native Home off/on and full rollback to the previous directory configuration,
+  followed by resume to native, passed. The rollback audit found no remaining
+  native listeners/scripts and confirmed the correct helper owned its port.
+- A real software reboot opened Home automatically with icons, without a manual
+  page reload. Root SSH, closed unauthenticated Telnet, configuration, approved
+  cleanup and protected-code hashes/permissions survived.
+
+### What is not established
+
+The ordinary upstream installer, updater and uninstaller were not run through
+this managed deployment. Actual streaming playback with audio, connected HDMI
+picture/audio/CEC, unplugged cold boot and prolonged standby remain physical
+acceptance checks. Physical remote standby/wake and Home were confirmed only
+for an earlier isolated native trial, not this exact permanent payload. Other
+models, firmware 04.60.91 and the rest of the UQ range are not covered by this
+report.
+
+**No `compat.json` whitelist entry is added.** Its current matching is based on
+firmware/SDK rather than the model, and a match allows setup without `--force`;
+a conditional status label would not prevent that. A normal upstream setup
+must be validated separately before enabling such an automatic compatibility
+entry.
 
 ## webOS version numbers
 
