@@ -36,17 +36,31 @@
 
 On one LG 70UQ7070ZUD running firmware 04.60.90 (webOS 7.6.0, Node 12.21.0),
 `luna-send` could exit without executing or returning a reply when stdin reached
-EOF. The Node helper supports an opt-in workaround: set `CYTV_LUNA_STDIN=open`
-in its launch environment. It then holds an input pipe open until the child
-exits, while keeping the Luna wait and the process kill deadline. Unset the
-variable to restore the default closed-stdin behaviour on other TVs.
+EOF. This fork supports an opt-in workaround: set `CYTV_LUNA_STDIN=open` in the
+runtime environment. The Node helper holds its input pipe open until the child
+exits, while keeping the Luna wait and process kill deadline. The shell scripts
+use `luna-compat.sh`, which holds a private descriptor open without a feeder
+process or persistent FIFO name. One-shot shell calls retain their Luna wait
+limits. Unset the variable to restore the default closed-stdin behaviour on
+other TVs.
 
 Developers can also pass `keepStdinOpen: true` to `helper/luna.js`; an explicit
 `false` overrides the environment. The foreground-app probe follows the same
-environment variable. This affects the **Node helper only**, not shell-script
-Luna calls, and does not make an unsupported Home takeover or installer safe.
-The device verification used a separately managed Home controller, not the
-generic installer. Other firmware has not been validated for this workaround.
+environment variable. The workaround does not make an unsupported Home takeover
+or installer safe. Device verification used this fork's protected, managed native
+runtime, not the complete generic installer/updater/uninstaller. Other firmware
+has not been validated for this workaround. See [this TV's integration guide](native-home.md).
+
+## Native startup skips Home while HDMI 2 is foreground
+
+On the same LG 70UQ7070ZUD / 04.60.90 / SDK 7.6.0 target, the boot hook initially
+read HDMI 2 as foreground. Upstream deliberately avoids stealing an active
+input, so it skipped the initial Home launch; its later safety check restored
+stock LG Home because no web launcher appeared. This deployment explicitly sets
+`CYTV_BOOT_HOME=1` to choose Home after native takeover. The default remains
+input-preserving. This setting affects startup, not subsequent app/HDMI use,
+and is separate from the TV's Home Auto Launch and Quick Start settings, which
+remain on.
 
 ## Reporting a problem
 

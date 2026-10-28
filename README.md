@@ -1,6 +1,6 @@
 <p align="center"><img src="assets/icon.svg" width="128" alt="CleanYourTV icon"></p>
 
-# CleanYourTV — LG 70UQ7070ZUD
+# CleanYourTV — LG 70UQ7070ZUD (webOS 7.6.0)
 
 **A model-specific fork for our rooted LG 70UQ7070ZUD, firmware 04.60.90,
 webOS SDK 7.6.0 (webOS 22).** Based on
@@ -18,6 +18,47 @@ deployment is tested on other LG models or firmware versions.
 | CleanYourTV helper / launcher | **1.6.9 / 1.5.4** |
 | Root method | **SlopBro**, official `throwaway96/slopbro` |
 | Integration branch | [`tv/upstream-native`](https://github.com/TylerBuza/cleanyourtv-lg70uq7070-webos76/tree/tv/upstream-native) |
+
+## Why upstream needed changes on this TV
+
+The compatibility work here is for **LG 70UQ7070ZUD / firmware 04.60.90 /
+webOS SDK 7.6.0**, using upstream **CleanYourTV 1.6.9 / launcher 1.5.4** as the
+baseline. Having root was not enough to make that deployment reliable on this
+firmware. We kept upstream's native Home stand-in and addressed these specific
+problems rather than replacing it with another Home controller:
+
+- **Luna commands could exit early.** On this firmware, `luna-send` could exit
+  without executing or returning a reply when stdin reached EOF. That affected
+  helper launch/status requests and shell-script Luna calls. This fork adds
+  opt-in `CYTV_LUNA_STDIN=open` handling to both paths, while keeping one-shot
+  calls bounded. The default for other TVs remains unchanged.
+- **Reboot startup stayed on HDMI 2, then fell back to LG Home.** The boot hook
+  saw the last HDMI input during its initial foreground check, so upstream's
+  input-preserving logic skipped launching Home. No web launcher appeared and
+  the safety fallback restored stock LG Home. This deployment uses the explicit
+  `CYTV_BOOT_HOME=1` option to open Home after takeover. It does not keep pulling
+  the user out of apps or HDMI afterward.
+- **The default runtime location was unsafe for root-executed code here.**
+  `/media/developer` was observed becoming recursively world-writable at boot.
+  Even if a live install worked, leaving root startup scripts there was not
+  acceptable. Generic runtime-path support and a quoted native wrapper let this
+  deployment use protected `/var/lib/cleanyourtv` instead.
+- **Icons could stay missing after helper startup.** Home could paint cached
+  tiles before the helper was ready; failed images became text fallbacks that
+  remained even after the helper recovered. Bounded icon retries now recover
+  those cached tiles without a manual page reload.
+- **Native undo needed safer ordering.** The isolated trial hit a busy mount
+  when unmounting before stopping its interpreter; upstream's undo used that
+  same ordering. This fork validates ownership, stops only the owned process
+  tree with PID-start checks, then unmounts. A failed unmount is reported instead
+  of being mistaken for a completed restore.
+
+These are observed compatibility and safety findings for this target, **not** a
+claim that upstream cannot work on other TVs or that the complete generic
+installer/updater/uninstaller was tested here. Managed-mode guards separately
+preserve this owner's existing debloat and optional-feature choices; they are a
+deployment policy, not evidence of an upstream bug. See the
+[native integration guide](docs/native-home.md) for details and validation limits.
 
 ## How we obtained root
 
