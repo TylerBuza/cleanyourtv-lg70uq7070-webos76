@@ -5,7 +5,8 @@
 # a bind it does nothing.) Pass --keep-config to keep your settings (config.json) and usage history.
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin:$PATH
 D=/media/developer/cleanyourtv
-. "$D/luna-compat.sh"
+luna_send() { command luna-send "$@" </dev/null; }
+[ ! -r "$D/luna-compat.sh" ] || . "$D/luna-compat.sh"
 INITD=/var/lib/webosbrew/init.d
 [ "$(id -u)" = 0 ] || { echo "run as root"; exit 1; }
 rm -f $INITD/10-cleanyourtv-home $INITD/15-cleanyourtv-debloat

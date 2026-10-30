@@ -8,10 +8,12 @@
 # service follows. The steps are the functions below; the order is at the end of the file.
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin:$PATH
 S=$(cd "$(dirname "$0")" && pwd)
-. "$S/scripts/luna-compat.sh"
+luna_send() { command luna-send "$@" </dev/null; }
+[ ! -r "$S/scripts/luna-compat.sh" ] || . "$S/scripts/luna-compat.sh"
 R=${CYTV_TEST_ROOT:-}                 # a folder that stands in for / (tools/test/scripts.test.js only; empty on a TV)
 MD=$R/media/developer
 D=$MD/cleanyourtv
+export CYTV_DIR="$D"
 INITD=$R/var/lib/webosbrew/init.d
 J="node $S/scripts/jtool.js"          # JSON helper (node, not python3)
 TV="node $S/helper/tvprofile.js"      # per-TV decisions

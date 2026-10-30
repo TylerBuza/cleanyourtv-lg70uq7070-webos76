@@ -6,7 +6,7 @@
   Home Settings > Home Style to Basic.
 - **Apps do not open, an HDMI input has no picture or the remote no longer controls HDMI-CEC devices (webOS 5 to 23).** These
   followed the restart of the app manager on TVs with LG's native Home (issues 14, 23 and 24). From service 1.6.6 such a TV takes
-  over Home without that restart. **Share log** shows the steps under _Boot steps_; open an issue with it if the problem stays.
+  over Home without that restart. **Share log** shows the steps under *Boot steps*; open an issue with it if the problem stays.
 - **An app is missing from the grid.** Check **Hidden apps** in Customise. Apps without a launch icon are not listed.
 - **After a firmware update removed root.** Re-root, then run the [install command](install.md#1-install-the-manager-app) and the setup again.
 - **The Input key opens LG's picker.** Check the Input key switch in the manager app and run **Learn the Input key**.
@@ -54,26 +54,40 @@ helper.
 
 On one LG 70UQ7070ZUD running firmware 04.60.90 (webOS 7.6.0, Node 12.21.0),
 `luna-send` could exit without executing or returning a reply when stdin reached
-EOF. Set `CYTV_LUNA_STDIN=open` in the launch environment to opt in to keeping
-stdin open. The Node helper holds its input pipe until the child exits and
-preserves both the Luna wait and process kill deadline. The shell scripts use
-`luna-compat.sh`: an immediately unlinked private FIFO holds a descriptor open
-without a feeder process or persistent FIFO name. One-shot shell calls retain
-their Luna wait arguments; the native Home registration remains a subscription.
-Unset the variable to restore the default closed-stdin behaviour on other TVs.
+EOF. Closed stdin remains the default; this is not an automatic SDK-wide rule.
+To opt in on an affected TV, create the flag over root SSH before setup:
 
-Developers can also pass `keepStdinOpen: true` to `helper/luna.js`; an explicit
-`false` overrides the environment. The foreground-app probe follows the same
-environment variable. Export the option in the environment that starts the
-service and scripts on each boot; this change does not persist installation
-preferences or change the default boot configuration. It does not make an
-unsupported Home takeover or installer safe. Equivalent Node and shell handling
-was checked in a separately managed native deployment; the complete generic
-installer/updater/uninstaller and other firmware were not device-validated.
+```sh
+mkdir -p /media/developer/cleanyourtv
+touch /media/developer/cleanyourtv/luna-stdin-open
+```
+
+The helper, foreground probe, Share log, optional voice capture and shell scripts
+read this flag. It survives updates and reboots without editing installed scripts.
+Remove it to undo the workaround (subsequent calls use closed stdin):
+
+```sh
+rm -f /media/developer/cleanyourtv/luna-stdin-open
+```
+
+For developers, `CYTV_LUNA_STDIN=open` or `closed` overrides the flag; an explicit
+per-call `keepStdinOpen` boolean overrides both in `helper/luna.js`. Node calls hold
+their input pipe until exit; one-shot calls retain their Luna wait and child
+deadline. Synchronous Share log calls and the shell wrapper use an immediately
+unlinked private FIFO, scoped to the call, with no feeder or descriptor inherited
+by other children. Native Home registration and optional voice remain subscriptions
+with their existing lifetimes. If the shell helper is missing after a partial copy,
+scripts fall back to closed stdin rather than aborting on the missing file.
+
+This option does not bypass installation compatibility checks or make an
+unsupported takeover safe. Equivalent handling was checked in a separately
+managed native deployment; this exact branch's generic install/reboot/update
+cycle and other firmware have not yet been device-validated.
 
 ## Reporting a problem
 
 An AI assistant can help you read the report and find the cause: see [Working on problems with an AI assistant](ai.md).
+
 
 Open an [issue](https://github.com/lasharor/cleanyourtv-WebOS/issues) and attach the output of **Share log**
 (manager app, see [The manager app](manager.md#share-log)). It is masked, so it does not contain your addresses or keys. Say which

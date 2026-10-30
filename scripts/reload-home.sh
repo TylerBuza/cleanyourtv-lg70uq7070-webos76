@@ -3,7 +3,8 @@
 # again. On webOS 6 (Node 8) WebAppMgr keeps the replaced page alive and a relaunch only brings the old page back, so
 # there webapp-mgr is restarted. Other versions are never restarted this way.
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin:$PATH
-. /media/developer/cleanyourtv/luna-compat.sh
+luna_send() { command luna-send "$@" </dev/null; }
+[ ! -r /media/developer/cleanyourtv/luna-compat.sh ] || . /media/developer/cleanyourtv/luna-compat.sh
 # The stand-in way (LG's native Home, scripts/home-standin.sh): webapp-mgr holds the launcher; close it there, and launching Home
 # makes the stand-in open it again.
 STANDIN=/tmp/cleanyourtv-home-standin

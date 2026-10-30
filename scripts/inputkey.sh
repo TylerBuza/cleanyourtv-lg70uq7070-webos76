@@ -4,7 +4,8 @@
 # now and let it close itself after use (older webOS, where a hidden overlay kept the remote), launcher = the launcher's own Inputs list.
 # If the picker app is missing, open the launcher's Inputs list instead.
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin:$PATH
-. /media/developer/cleanyourtv/luna-compat.sh
+luna_send() { command luna-send "$@" </dev/null; }
+[ ! -r /media/developer/cleanyourtv/luna-compat.sh ] || . /media/developer/cleanyourtv/luna-compat.sh
 read UP _ < /proc/uptime   # when the key was pressed, for tools/perf-tv.sh (logged after the work is done)
 mark() { (curl -s -m 2 "http://127.0.0.1:8765/api/log?m=perf%20key%20$1%20$UP" </dev/null >/dev/null 2>&1 &); }
 M=$(cat /media/developer/cleanyourtv/picker-mode 2>/dev/null)

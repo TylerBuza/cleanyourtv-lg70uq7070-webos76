@@ -7,7 +7,8 @@
 #            A file home-method holding "mount" in the service folder chooses the first way on such a TV too.
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin:$PATH
 L=/media/developer/cleanyourtv
-. "$L/luna-compat.sh"
+luna_send() { command luna-send "$@" </dev/null; }
+[ ! -r "$L/luna-compat.sh" ] || . "$L/luna-compat.sh"
 H=/usr/palm/applications/com.webos.app.home
 STANDIN=/tmp/cleanyourtv-home-standin   # holds the path of LG's Home program while the stand-in is mounted over it
 LOG=/tmp/cleanyourtv-boot.log

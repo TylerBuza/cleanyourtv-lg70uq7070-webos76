@@ -1,7 +1,8 @@
 #!/bin/sh
 # Restore LG's stock Home. "temp": until next reboot only; no arg: also create DISABLE so reboots keep stock Home.
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin:$PATH
-. /media/developer/cleanyourtv/luna-compat.sh
+luna_send() { command luna-send "$@" </dev/null; }
+[ ! -r /media/developer/cleanyourtv/luna-compat.sh ] || . /media/developer/cleanyourtv/luna-compat.sh
 [ "$1" = temp ] || touch /media/developer/cleanyourtv/DISABLE /media/developer/cleanyourtv/DISABLE-DEBLOAT
 # our apps must not be what the TV tries to come back to: close them and point the boot's "last app" at LG's Home
 for id in com.cleanyourtv.manager com.cleanyourtv.picker com.cleanyourtv.notify; do

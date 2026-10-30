@@ -7,7 +7,8 @@
 # Every step is written to /tmp/cleanyourtv-boot.log, which Share log includes.
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin:$PATH
 L=/media/developer/cleanyourtv
-. "$L/luna-compat.sh"
+luna_send() { command luna-send "$@" </dev/null; }
+[ ! -r "$L/luna-compat.sh" ] || . "$L/luna-compat.sh"
 LOG=/tmp/cleanyourtv-boot.log
 up() { cut -d' ' -f1 /proc/uptime; }
 log() { echo "$(up) home-standin[$$]: $*" >> $LOG 2>/dev/null; }
