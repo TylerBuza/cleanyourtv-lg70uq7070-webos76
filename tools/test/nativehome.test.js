@@ -22,8 +22,10 @@ run(async () => {
   fs.writeFileSync(script, '#!/bin/sh\n');
   fs.linkSync(script, exe);
   fs.writeFileSync(P.STANDIN, exe);
+  fs.writeFileSync(path.join(P.PROC, 'mounts'), 'source ' + exe + ' none rw 0 0\n');
   native.validate(exe);
   ok(native.same(script, exe), 'the target must have the owned stand-in inode');
+  ok(native.target() === exe, 'the mounted stand-in can be recovered independently of saved metadata');
   fs.unlinkSync(exe);
   fs.writeFileSync(exe, 'foreign program');
   let signals = [],
@@ -34,8 +36,25 @@ run(async () => {
     refused = /foreign/.test(e.message);
   }
   ok(refused && signals.length === 0, 'a foreign mount is refused before any process is signalled');
+  refused = false;
+  try {
+    native.target();
+  } catch (e) {
+    refused = /foreign/.test(e.message);
+  }
+  ok(refused, 'target discovery refuses a marker pointing at a foreign mount');
   fs.unlinkSync(exe);
   fs.linkSync(script, exe);
+  const manifest = path.join(P.D, 'backup/home-appinfo.orig.json'),
+    saved = fs.readFileSync(manifest);
+  for (const value of [null, { id: 'com.webos.app.home', main: exe }, { id: 'com.webos.app.home', type: 'native', main: '/changed' }]) {
+    if (value) fs.writeFileSync(manifest, JSON.stringify(value));
+    else fs.unlinkSync(manifest);
+    ok(native.target() === exe, 'recovery finds the owned mount despite missing/changed manifest');
+    const recovered = await native.stop(exe, { recovery: true, processes: () => ({}), sleep: async () => {} });
+    ok(recovered.stopped === 0, 'metadata recovery still uses bounded owned-process cleanup');
+  }
+  fs.writeFileSync(manifest, saved);
   const original = {
     10: { pid: 10, ppid: 1, start: '100', args: ['/bin/sh', exe] },
     11: { pid: 11, ppid: 10, start: '101', args: ['luna-send'] },
@@ -132,6 +151,7 @@ run(async () => {
     refused = true;
   }
   ok(refused, 'a mismatched marker is refused');
+  ok(native.target() === exe, 'a mismatched marker does not strand an independently owned mount');
   fs.unlinkSync(P.STANDIN);
   fs.symlinkSync(exe, P.STANDIN);
   refused = false;
@@ -141,6 +161,7 @@ run(async () => {
     refused = true;
   }
   ok(refused, 'a symlink marker is refused');
+  ok(native.target() === exe, 'recovery does not follow a symlink marker');
   fs.unlinkSync(P.STANDIN);
   const fifo = cp.spawnSync('mkfifo', [P.STANDIN]);
   refused = false;
@@ -150,7 +171,9 @@ run(async () => {
     refused = true;
   }
   ok(fifo.status === 0 && refused, 'a FIFO marker is rejected without reading and blocking on it');
+  ok(native.target() === exe, 'recovery does not read a FIFO marker');
   fs.unlinkSync(P.STANDIN);
+  ok(native.target() === exe, 'recovery finds an owned mount even without its marker');
   fs.writeFileSync(P.STANDIN, exe);
   const procDir = path.join(P.PROC, '321');
   fs.mkdirSync(procDir);
@@ -165,31 +188,59 @@ run(async () => {
   fields[0] = 'Z';
   fs.writeFileSync(path.join(procDir, 'stat'), '321 (name) ' + fields.join(' '));
   ok(!native.processes()['321'], 'zombies do not keep cleanup waiting for a dead interpreter');
-  const start = undo.indexOf('if [ -f $STANDIN ]'),
+  const start = undo.indexOf('EXE=$(node'),
     end = undo.indexOf('\nfor m in ', start);
   ok(start >= 0 && end > start, 'exercise the real native undo shell branch');
   const calls = path.join(tmp, 'calls');
   const setup =
-    'L="$1"; STANDIN="$2"; CALLS="$3"; grep() { return 0; }; node() { echo stop >> "$CALLS"; return 0; }; umount() { echo unmount >> "$CALLS"; return 1; };\n';
-  const result = cp.spawnSync('/bin/sh', ['-c', setup + undo.slice(start, end), 'sh', P.D, P.STANDIN, calls], {
-    encoding: 'utf8',
-    timeout: 5000,
-  });
+    'L="$1"; STANDIN="$2"; CALLS="$3"; TARGET="$4"; sleep() { :; };\n' +
+    'node() { case "$2" in target) echo "$TARGET";; stop) echo stop >> "$CALLS"; return "${STOP:-0}";; recover) echo recover >> "$CALLS"; return "${RECOVER:-0}";; owned) echo owned >> "$CALLS"; return "${OWNED:-0}";; esac; };\n' +
+    'umount() { echo unmount >> "$CALLS"; return "${UNMOUNT:-1}"; };\n';
+  const shellUndo = env => {
+    fs.writeFileSync(calls, '');
+    return cp.spawnSync('/bin/sh', ['-c', setup + undo.slice(start, end), 'sh', P.D, P.STANDIN, calls, exe], {
+      encoding: 'utf8',
+      timeout: 5000,
+      env: Object.assign({}, process.env, env || {}),
+    });
+  };
+  let result = shellUndo();
   ok(
     result.status !== 0 &&
       fs.existsSync(P.STANDIN) &&
-      fs.readFileSync(calls, 'utf8') === 'stop\nunmount\n' &&
+      fs.readFileSync(calls, 'utf8') === 'stop\nowned\nunmount\n' &&
       !/stock Home restored/.test(result.stdout),
     'busy unmount retains its marker and never reports successful restoration'
   );
-  const hook = fs.readFileSync(path.join(root, 'scripts/10-cleanyourtv-home'), 'utf8');
+  result = shellUndo({ STOP: '1', UNMOUNT: '0' });
   ok(
-    /home-generation/.test(undo) && /home-generation/.test(hook) && /generation.*DISABLE/.test(hook),
-    'undo retires the watchdog and startup rechecks its generation after sleeping'
+    result.status === 0 &&
+      /stock Home restored/.test(result.stdout) &&
+      fs.readFileSync(calls, 'utf8') === 'stop\nrecover\nowned\nunmount\n',
+    'a failed metadata check falls back and can restore the owned mount'
+  );
+  fs.writeFileSync(P.STANDIN, exe);
+  result = shellUndo({ STOP: '1', RECOVER: '1' });
+  ok(
+    result.status !== 0 &&
+      fs.existsSync(P.STANDIN) &&
+      /cleanup incomplete/.test(result.stderr) &&
+      !/stock Home restored/.test(result.stdout),
+    'failed termination still attempts best effort but reports a busy mount honestly'
+  );
+  result = shellUndo({ OWNED: '1', UNMOUNT: '0' });
+  ok(result.status !== 0 && !/unmount/.test(fs.readFileSync(calls, 'utf8')), 'changed mount ownership prevents unmounting');
+  const hook = fs.readFileSync(path.join(root, 'scripts/10-cleanyourtv-home'), 'utf8');
+  const watchdog = fs.readFileSync(path.join(root, 'scripts/watchdog.sh'), 'utf8');
+  ok(
+    !/home-generation/.test(undo + hook) &&
+      /watchdog\.sh/.test(hook) &&
+      watchdog.indexOf('&& replaced; then') > watchdog.indexOf('sleep "$EVERY"'),
+    'obsolete generations are dropped; the separate watchdog rechecks takeover after sleeping'
   );
   const uninstall = fs.readFileSync(path.join(root, 'uninstall.sh'), 'utf8');
   ok(
-    /cleanyourtv-home-standin/.test(uninstall) && /undo-home\.sh.*\|\|/.test(uninstall),
+    /--no-reboot/.test(uninstall) && /undo-home\.sh.*\|\|/.test(uninstall),
     'no-reboot uninstall also handles native takeover and stops on failed undo'
   );
 });

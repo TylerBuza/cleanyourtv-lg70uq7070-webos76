@@ -13,6 +13,35 @@ function same(a, b) {
     return false;
   }
 }
+function mounts() {
+  return fs
+    .readFileSync(P.PROC + '/mounts', 'utf8')
+    .trim()
+    .split('\n')
+    .map(line => (line.split(/\s+/)[1] || '').replace(/\\([0-7]{3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8))))
+    .filter(Boolean);
+}
+function ownedMount(exe) {
+  return !!exe && exe[0] === '/' && mounts().indexOf(exe) >= 0 && same(exe, P.D + '/home-standin.sh');
+}
+// The mount's inode is independent evidence when an interrupted update lost the
+// marker or manifest. Never read a FIFO/symlink marker as a path to unmount.
+function target() {
+  const mounted = mounts(),
+    ours = mounted.filter(exe => same(exe, P.D + '/home-standin.sh'));
+  if (ours.length > 1) throw new Error('more than one stand-in mount; manual recovery needed');
+  if (ours.length) return ours[0];
+  try {
+    const marker = fs.lstatSync(P.STANDIN);
+    if (marker.isFile() && !marker.isSymbolicLink()) {
+      const exe = fs.readFileSync(P.STANDIN, 'utf8').trim();
+      if (mounted.indexOf(exe) >= 0) throw new Error('stand-in marker points at a foreign mount; leaving it untouched');
+    }
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+  return '';
+}
 function processes() {
   const out = {};
   for (const name of fs.readdirSync(P.PROC)) {
@@ -65,10 +94,12 @@ function validate(exe) {
   const marker = fs.lstatSync(P.STANDIN);
   if (!marker.isFile() || marker.isSymbolicLink() || fs.readFileSync(P.STANDIN, 'utf8').trim() !== exe)
     throw new Error('unexpected stand-in marker');
-  if (!same(P.D + '/home-standin.sh', exe)) throw new Error('foreign native program mount: refusing to stop anything');
+  if (!ownedMount(exe)) throw new Error('foreign native program mount: refusing to stop anything');
 }
 async function stop(exe, io) {
-  validate(exe);
+  if (io && io.recovery) {
+    if (!ownedMount(exe)) throw new Error('cannot prove ownership of stand-in mount; leaving it untouched');
+  } else validate(exe);
   const read = (io && io.processes) || processes,
     kill = (io && io.kill) || ((pid, signal) => process.kill(pid, signal)),
     wait = (io && io.sleep) || sleep,
@@ -110,17 +141,26 @@ async function stop(exe, io) {
   return { stopped: Object.keys(owned).length };
 }
 
-module.exports = { same, processes, roots, tree, validate, stop };
+module.exports = { same, ownedMount, target, processes, roots, tree, validate, stop };
 if (require.main === module) {
-  if (process.argv[2] !== 'stop' || !process.argv[3]) {
-    console.error('usage: node nativehome.js stop <native-Home-program>');
-    process.exit(2);
-  }
-  stop(process.argv[3]).then(
-    result => console.log(JSON.stringify(result)),
-    error => {
+  Promise.resolve()
+    .then(() => {
+      const mode = process.argv[2],
+        exe = process.argv[3];
+      if (mode === 'target') {
+        const found = target();
+        if (found) console.log(found);
+        return;
+      }
+      if (mode === 'owned') {
+        if (!ownedMount(exe)) throw new Error('stand-in mount ownership changed');
+        return;
+      }
+      if (mode === 'stop' || mode === 'recover') return stop(exe, { recovery: mode === 'recover' });
+      throw new Error('unknown cleanup operation');
+    })
+    .catch(error => {
       console.error(error.message);
       process.exitCode = 1;
-    }
-  );
+    });
 }

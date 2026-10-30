@@ -21,9 +21,7 @@ pkill -f "[c]leanyourtv/helper.js"
 # our Input-key bind
 node $D/jtool.js rmbind 2>/dev/null
 case " $* " in *" --no-reboot "*)
-  if grep -q " /usr/palm/applications/com.webos.app.home " /proc/mounts || { [ -f /tmp/cleanyourtv-home-standin ] && grep -q " $(cat /tmp/cleanyourtv-home-standin) " /proc/mounts; }; then
-    sh "$D/undo-home.sh" temp </dev/null || { echo 'Home restoration failed; runtime retained for recovery' >&2; exit 1; }
-  fi
+  sh "$D/undo-home.sh" temp </dev/null || { echo 'Home restoration failed; runtime retained for recovery' >&2; exit 1; }
 ;; esac
 KEEP=0; case " $* " in *" --keep-config "*) KEEP=1 ;; esac
 if [ $KEEP = 1 ]; then mkdir -p /media/developer/cytv-keep; cp $D/config.json $D/usage.json /media/developer/cytv-keep/ 2>/dev/null; fi
