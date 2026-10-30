@@ -524,6 +524,28 @@ function build() {
     rows.push({ label: 'No, keep it', fn: pop });
     return;
   }
+  if (view === 'volumebar') {
+    var curV = (st.options && st.options.volumeTheme) || 'system';
+    rows.push({ label: 'Volume bar', sub: 'Replaces LG\u2019s own bar; System default puts it back. Tried on webOS 5 only.', fn: function () {} });
+    var themes = [
+      { id: 'pill', label: tr('Pill'), sub: tr('Vertical pill on the right') },
+      { id: 'capsule', label: tr('Capsule'), sub: tr('Horizontal bar at the top') },
+      { id: 'dial', label: tr('Dial'), sub: tr('Circular dial on the right') },
+      { id: 'system', label: tr('System default (LG webOS)'), sub: tr('Stock TV volume bar') },
+    ];
+    themes.forEach(function (t) {
+      rows.push({
+        label: t.label,
+        sub: (t.id === curV ? 'selected \u00B7 ' : '') + t.sub,
+        fn: function () {
+          opt({ volumeTheme: t.id });
+        },
+      });
+    });
+    rows.push({ sep: true });
+    rows.push({ label: 'Back', fn: pop });
+    return;
+  }
   if (view === 'inputkey') {
     var hk = st.inputhook || {},
       na = hk.hook && !hk.hook.attached;
@@ -601,6 +623,50 @@ function build() {
         opt(anyOff ? { debloat: true, debloatOff: [] } : { debloat: false, debloatOff: [] });
       },
     });
+    rows.push({ sep: true });
+    rows.push({ label: 'Back', fn: pop });
+    return;
+  }
+  if (view === 'experimental') {
+    rows.push({ label: 'Experimental', sub: 'off by default · tried on one TV · switch off to get LG\u2019s own setup back', fn: function () {} });
+    rows.push({
+      label: 'Volume bar',
+      sub: volumeSub((st.options || {}).volumeTheme) + ' \u00B7 replaces LG\u2019s own bar',
+      fn: function () {
+        push('volumebar');
+      },
+    });
+    if (zr && zr.available) {
+      rows.push({
+        label: 'Compressed memory',
+        sub: onoff(zr.on) + ' \u00B7 keeps idle memory compressed in RAM instead of on the built-in storage',
+        fn: function () {
+          zramSet(zr.on ? 0 : zrSize);
+        },
+      });
+      rows.push({
+        label: 'Size',
+        sub: zrSize + ' MB',
+        fn: function () {
+          var s = zr.sizes || [256, 512, 768, 1024];
+          zrSize = s[(s.indexOf(zrSize) + 1) % s.length];
+          if (zr.on) zramSet(zrSize);
+          else {
+            build();
+            draw();
+          }
+        },
+      });
+      rows.push({
+        label: 'Refresh',
+        sub: (zr.on ? zr.stored + ' MB kept in ' + zr.ram + ' MB of memory \u00B7 ' : '') + 'free memory ' + zr.memAvailable + ' MB',
+        fn: function () {
+          zramLoad(true);
+        },
+      });
+    } else {
+      rows.push({ label: 'Compressed memory', sub: 'not available on this TV', fn: function () {} });
+    }
     rows.push({ sep: true });
     rows.push({ label: 'Back', fn: pop });
     return;
@@ -988,6 +1054,7 @@ function build() {
       push('debloat');
     },
   });
+  rows.push({ label: 'Experimental', sub: 'compressed memory, volume bar', fn: zramLoad });
   rows.push({
     label: 'More',
     sub: 'Home Assistant, voice, language, network notifications',
@@ -1018,6 +1085,39 @@ var DEBLOAT = [
   { id: 'logs', label: 'Telemetry logs', what: 'remotelogger, service-logger' },
   { id: 'suggestions', label: 'Suggestions and nudges', what: 'contentminer, nudge, sportsalarm' },
 ];
+/* Experimental: compressed memory (zram, helper/zram.js). The service answers with what the TV has now. */
+var zr = null,
+  zrSize = 512;
+function zramLoad(stay) {
+  api('/api/zram').then(
+    function (r) {
+      zr = r;
+      zrSize = r.size || r.setting || zrSize;
+      if (stay === true) {
+        build();
+        draw();
+      } else push('experimental');
+    },
+    function () {
+      banner('The service did not answer', 'err');
+    }
+  );
+}
+function zramSet(size) {
+  banner('Applying\u2026', 'work');
+  api('/api/zram', { size: size }, 130000).then(
+    function (r) {
+      zr = r;
+      zrSize = r.size || r.setting || zrSize;
+      banner(r.error || '', r.error ? 'err' : '');
+      build();
+      draw();
+    },
+    function () {
+      banner('The service did not answer', 'err');
+    }
+  );
+}
 function debloatOn(id) {
   var o = st.options || {};
   return o.debloat !== false && (o.debloatOff || []).indexOf(id) < 0;
@@ -1044,4 +1144,12 @@ function debloatToggle(id) {
       return g !== id;
     }),
   });
+}
+
+function volumeSub(theme) {
+  if (theme === 'system') return tr('System default (LG webOS)');
+  if (theme === 'capsule') return tr('Capsule');
+  if (theme === 'dial') return tr('Dial');
+  if (theme === 'pill') return tr('Pill');
+  return tr('System default (LG webOS)');
 }
