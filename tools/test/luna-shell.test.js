@@ -78,6 +78,7 @@ run(async () => {
     'reload-home.sh',
     'undo-home.sh',
     '../uninstall.sh',
+    'volume-osd-restore.sh',
   ]) {
     const text = fs.readFileSync(path.join(root, 'scripts', file), 'utf8');
     const header = text

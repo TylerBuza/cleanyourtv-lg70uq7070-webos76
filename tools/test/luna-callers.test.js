@@ -46,7 +46,7 @@ run(async () => {
   };
   try {
     req('apps')
-      .create({ config: memoryConfig(), luna: async () => ({ returnValue: true }) })
+      .create({ config: memoryConfig(), luna: async () => ({ returnValue: true }), audio: { start() {} } })
       .start();
     poll();
     fs.writeFileSync(P.D + '/luna-stdin-open', '');
